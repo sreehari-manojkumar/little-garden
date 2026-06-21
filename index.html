@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Little Garden — Budget Tracker</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#7C9885" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Little Garden" />
+<style>
+  :root {
+    --paper: #FBF7F0;
+    --ink: #2D2A26;
+    --ink-soft: #6B655C;
+    --sage: #7C9885;
+    --sage-deep: #5C7A65;
+    --clay: #D88C6B;
+    --gold: #C9A876;
+    --blue: #6B8FB3;
+    --red: #C16B5E;
+    --line: #E5DDD0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .fredoka { font-family: Georgia, 'Trebuchet MS', sans-serif; font-weight: 700; }
+  button { cursor: pointer; font-family: inherit; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--sage-deep); outline-offset: 2px; }
+  input, select { font-family: inherit; }
+  .cat-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .cat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(45,42,38,0.08); }
+  @media (prefers-reduced-motion: reduce) {
+    .cat-card { transition: none; }
+    .cat-card:hover { transform: none; }
+  }
+  ::placeholder { color: #B5AC9D; }
+
+  .wrap { min-height: 100vh; padding: 28px 20px 70px; }
+  .container { max-width: 800px; margin: 0 auto; }
+
+  .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; flex-wrap: wrap; gap: 8px; }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  h1.title { font-size: 26px; margin: 0; letter-spacing: -0.01em; }
+  .subtitle { color: var(--ink-soft); margin: 0 0 18px; font-size: 14.5px; }
+  .saved-flash { font-size: 12px; color: var(--ink-soft); opacity: 0; transition: opacity 0.4s; }
+  .saved-flash.show { opacity: 1; }
+
+  /* Month switcher */
+  .month-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 22px; }
+  .month-nav-btn { background: #fff; border: 1px solid var(--line); border-radius: 999px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: var(--ink-soft); }
+  .month-nav-btn:hover { background: var(--paper); }
+  .month-label { font-weight: 800; font-size: 15px; min-width: 150px; text-align: center; }
+  .month-add-btn { background: none; border: none; color: var(--sage-deep); font-size: 12.5px; text-decoration: underline; font-weight: 700; }
+
+  /* Summary - answers the core question */
+  .summary-card {
+    background: #fff; border: 1px solid var(--line); border-radius: 20px;
+    padding: 22px 24px; margin-bottom: 22px;
+  }
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 16px; }
+  .summary-stat { text-align: center; }
+  .summary-stat .stat-label { font-size: 11.5px; color: var(--ink-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
+  .summary-stat .stat-value { font-size: 17px; font-weight: 800; }
+  .summary-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .summary-headline { font-size: 14.5px; color: var(--ink-soft); line-height: 1.5; }
+  .summary-headline b { color: var(--ink); }
+  @media (max-width: 480px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .flow-bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; margin-top: 16px; background: var(--line); }
+  .flow-seg { height: 100%; }
+  .flow-legend { display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-soft); }
+  .flow-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .flow-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  /* Behavior analyst */
+  .analyst-card {
+    background: #fff; border: 1px solid var(--line); border-radius: 18px;
+    padding: 18px 20px; margin-bottom: 22px;
+  }
+  .analyst-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .analyst-emoji { font-size: 18px; line-height: 1; }
+  .analyst-title { font-size: 15px; color: var(--ink-soft); }
+  .analyst-body { display: flex; flex-direction: column; gap: 8px; }
+  .analyst-msg { display: flex; align-items: flex-start; gap: 9px; font-size: 14px; line-height: 1.5; padding: 9px 12px; border-radius: 12px; }
+  .analyst-msg .msg-icon { flex-shrink: 0; margin-top: 1px; }
+  .analyst-msg.tone-good { background: #F0F5F0; color: #466450; }
+  .analyst-msg.tone-nudge { background: #FBF2E4; color: #8A6A2E; }
+  .analyst-msg.tone-warn { background: #FBEEEA; color: #A14C3B; }
+  .analyst-msg.tone-neutral { background: var(--paper); color: var(--ink-soft); }
+  .analyst-msg b { font-weight: 800; }
+
+  /* Income */
+  .income-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin-bottom: 22px; }
+  .income-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .income-total { font-size: 19px; font-weight: 800; color: var(--sage-deep); }
+  .add-income-btn { display: flex; align-items: center; gap: 6px; background: var(--gold); color: #fff; border: none; border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 700; }
+  .income-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .income-item { display: flex; align-items: center; gap: 10px; font-size: 13.5px; padding: 7px 10px; background: var(--paper); border-radius: 10px; }
+  .income-item-note { color: var(--ink-soft); flex: 1; }
+  .income-item-amt { font-weight: 700; }
+  .income-item-del { background: none; border: none; color: #C7BFAF; padding: 2px; display: flex; }
+
+  .section-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  h2.section-title { font-size: 18px; margin: 0; }
+  .new-pouch-btn {
+    display: flex; align-items: center; gap: 6px; background: var(--sage); color: #fff;
+    border: none; border-radius: 999px; padding: 8px 14px; font-size: 13.5px; font-weight: 700;
+  }
+
+  .add-cat-form {
+    background: #fff; border: 1px dashed var(--sage); border-radius: 16px; padding: 16px;
+    margin-bottom: 16px; display: none; gap: 10px; flex-wrap: wrap; align-items: center;
+  }
+  .add-cat-form.show { display: flex; }
+  .add-cat-form input[type="text"] { flex: 1 1 160px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); font-size: 14px; }
+  .add-cat-form input[type="number"] { width: 110px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); font-size: 14px; }
+  .add-cat-form label.chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); }
+  .add-cat-form button { background: var(--ink); color: #fff; border: none; border-radius: 10px; padding: 9px 16px; font-weight: 700; font-size: 14px; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--ink-soft); border: 1px dashed var(--line); border-radius: 16px; }
+
+  .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .cat-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; gap: 12px; position: relative; }
+  .cat-card.is-invest { border-color: #C9D6E8; }
+  .cat-card.is-income { border-color: #B9CEE3; background: linear-gradient(180deg, #F5F9FD 0%, #ffffff 60%); }
+  .invest-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--blue); background: #EAF1F8; padding: 2px 7px; border-radius: 999px; }
+  .income-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; background: #4A7FB5; padding: 2px 7px; border-radius: 999px; width: fit-content; }
+  .spend-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--clay); background: #FBF0E9; padding: 2px 7px; border-radius: 999px; width: fit-content; }
+  .log-income-btn { background: #EAF1F8; border-color: #C9D6E8; }
+  .cat-info { flex: 1; min-width: 0; }
+  .cat-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  .cat-actions { display: flex; gap: 2px; flex-shrink: 0; }
+  .cat-name-wrap { display: flex; flex-direction: column; gap: 3px; }
+  .cat-name { font-weight: 800; font-size: 15px; }
+  .cat-edit { background: none; border: none; padding: 2px; color: #C7BFAF; flex-shrink: 0; }
+  .cat-edit:hover { color: var(--sage-deep); }
+  .cat-delete { background: none; border: none; padding: 2px; color: #C7BFAF; flex-shrink: 0; }
+  .cat-delete:hover { color: var(--red); }
+  .cat-amounts { font-size: 13px; font-weight: 600; margin: 6px 0 10px; }
+  .log-expense-btn { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; font-weight: 700; color: var(--ink); }
+
+  .recent-section { margin-top: 30px; }
+  .recent-list { display: flex; flex-direction: column; gap: 8px; }
+  .recent-item { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 14px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .recent-note { color: var(--ink-soft); }
+  .recent-amount { margin-left: auto; font-weight: 800; }
+  .recent-delete { background: none; border: none; color: #C7BFAF; padding: 2px; display: flex; flex-shrink: 0; margin-left: 4px; }
+  .recent-delete:hover { color: var(--red); }
+
+  .footer-row { margin-top: 36px; display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; }
+  .footer-link { background: none; border: none; color: var(--ink-soft); font-size: 12.5px; text-decoration: underline; padding: 4px; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(45,42,38,0.35);
+    display: none; align-items: center; justify-content: center; padding: 20px; z-index: 10;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box { background: #fff; border-radius: 20px; padding: 24px; width: 100%; max-width: 360px; max-height: 85vh; overflow-y: auto; }
+  .modal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .modal-head h3 { margin: 0; font-size: 17px; }
+  .modal-sub { color: var(--ink-soft); font-size: 13.5px; margin: 2px 0 16px; }
+  .modal-box input, .modal-box textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); font-size: 15px; margin-bottom: 10px; }
+  .modal-box textarea { font-family: monospace; font-size: 12px; min-height: 120px; resize: vertical; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+  .modal-actions button { flex: 1; border-radius: 10px; padding: 10px; font-weight: 700; font-size: 14px; }
+  .btn-cancel { background: var(--paper); border: 1px solid var(--line); }
+  .btn-confirm { background: var(--sage); color: #fff; border: none; }
+  .modal-note { font-size: 12.5px; color: var(--ink-soft); margin: 4px 0 12px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="container">
+    <div class="header-row">
+      <div class="header-left">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5C7A65" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 20h10" /><path d="M10 20c0-5 1-8 4-10" />
+          <path d="M10 20c-2-2-3-5-2-9 3 0 5 1 6 3" />
+          <path d="M14 13c1-2 3-3 6-3 1 4 0 7-2 9" />
+        </svg>
+        <h1 class="title fredoka">Little Garden</h1>
+      </div>
+      <span class="saved-flash" id="savedFlash">Saved ✓</span>
+    </div>
+    <p class="subtitle">Earned, spent, invested — tracked one month at a time.</p>
+
+    <div class="month-bar">
+      <button class="month-nav-btn" id="prevMonth" aria-label="Previous month">‹</button>
+      <span class="month-label" id="monthLabel"></span>
+      <button class="month-nav-btn" id="nextMonth" aria-label="Next month">›</button>
+    </div>
+
+    <!-- Summary answering: earned / spent / invested / remaining -->
+    <div class="summary-card">
+      <div class="summary-head">
+        <p class="summary-headline" id="summaryHeadline"></p>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-stat">
+          <div class="stat-label">Earned</div>
+          <div class="stat-value" id="statEarned" style="color:var(--gold);"></div>
+        </div>
+        <div class="summary-stat">
+          <div class="stat-label">Spent</div>
+          <div class="stat-value" id="statSpent" style="color:var(--clay);"></div>
+        </div>
+        <div class="summary-stat">
+          <div class="stat-label">Invested</div>
+          <div class="stat-value" id="statInvested" style="color:var(--blue);"></div>
+        </div>
+        <div class="summary-stat">
+          <div class="stat-label">Left over</div>
+          <div class="stat-value" id="statRemaining"></div>
+        </div>
+      </div>
+      <div class="flow-bar" id="flowBar"></div>
+      <div class="flow-legend" id="flowLegend"></div>
+    </div>
+
+    <!-- Behavior analyst -->
+    <div class="analyst-card" id="analystCard">
+      <div class="analyst-head">
+        <span class="analyst-emoji" id="analystEmoji">🌱</span>
+        <span class="analyst-title fredoka">Garden Notes</span>
+      </div>
+      <div class="analyst-body" id="analystBody"></div>
+    </div>
+
+    <!-- Income is now the first pouch in "Your pouches" below -->
+
+    <div class="section-row">
+      <h2 class="section-title fredoka">Your pouches</h2>
+      <button class="new-pouch-btn" id="toggleAddCat">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+        New pouch
+      </button>
+    </div>
+
+    <div class="add-cat-form" id="addCatForm">
+      <input type="text" id="newCatName" placeholder="Pouch name (e.g. Coffee)" />
+      <input type="number" id="newCatBudget" placeholder="Budget ₹" />
+      <label class="chk"><input type="checkbox" id="newCatInvest" /> This is an investment</label>
+      <button id="addCatBtn">Add</button>
+    </div>
+
+    <div id="catGridWrap"></div>
+
+    <!-- Edit category modal lives at body level, see below -->
+
+
+    <div class="recent-section" id="recentSection" style="display:none;">
+      <h2 class="section-title fredoka">Recently logged</h2>
+      <div class="recent-list" id="recentList"></div>
+    </div>
+
+    <div class="footer-row">
+      <button class="footer-link" id="exportBtn">Download backup (.json)</button>
+      <button class="footer-link" id="importBtn">Restore from backup</button>
+      <button class="footer-link" id="resetBtn">Reset this month</button>
+    </div>
+  </div>
+</div>
+
+<!-- Expense / investment modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C7A65" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+      </svg>
+      <h3 class="fredoka" id="modalTitle">Log an expense</h3>
+    </div>
+    <p class="modal-sub" id="modalCatName"></p>
+    <input type="number" id="expenseAmount" placeholder="Amount ₹" />
+    <input type="text" id="expenseNote" placeholder="What was it for? (optional)" />
+    <div class="modal-actions">
+      <button class="btn-cancel" id="modalCancel">Cancel</button>
+      <button class="btn-confirm" id="modalConfirm">Log it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit category modal -->
+<div class="modal-overlay" id="editCatModalOverlay">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C7A65" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
+      <h3 class="fredoka" id="editCatModalTitle">Edit pouch</h3>
+    </div>
+    <input type="text" id="editCatName" placeholder="Pouch name" />
+    <input type="number" id="editCatBudget" placeholder="Budget ₹" />
+    <label class="chk" id="editCatInvestRow" style="margin-bottom: 14px; display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft);">
+      <input type="checkbox" id="editCatInvest" /> This is an investment
+    </label>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="editCatCancel">Cancel</button>
+      <button class="btn-confirm" id="editCatConfirm">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import modal -->
+<div class="modal-overlay" id="importModalOverlay">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head"><h3 class="fredoka">Restore from backup</h3></div>
+    <p class="modal-note">Paste the contents of a previously downloaded backup file below. This replaces all current data — export your current data first if you want to keep it.</p>
+    <textarea id="importText" placeholder="Paste backup JSON here..."></textarea>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="importCancel">Cancel</button>
+      <button class="btn-confirm" id="importConfirm">Restore</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFileInput" accept=".json,application/json" style="display:none;" />
+
+<script>
+(function () {
+  "use strict";
+
+  var PALETTE_RED = "#C16B5E";
+  var PALETTE_CLAY = "#D88C6B";
+  var PALETTE_SAGE = "#7C9885";
+  var PALETTE_GOLD = "#C9A876";
+  var PALETTE_BLUE = "#6B8FB3";
+  var PALETTE_INCOME_BLUE = "#4A7FB5";
+  var CATEGORY_COLORS = ["#7C9885", "#D88C6B", "#C9A876", "#8B9DC3", "#B8876B", "#9CAF88"];
+  var STORAGE_KEY = "little-garden-budget-v2-in";
+  var INCOME_POUCH_ID = "income-pouch";
+
+  var STARTER_CATEGORIES = [];
+
+  function uid() { return Math.random().toString(36).slice(2, 9); }
+
+  // Indian numbering format (lakh/crore grouping), no decimals for whole rupees
+  function formatINR(n) {
+    var neg = n < 0;
+    var abs = Math.abs(Math.round(n * 100) / 100);
+    var parts = abs.toFixed(abs % 1 === 0 ? 0 : 2).split(".");
+    var intPart = parts[0];
+    var dec = parts[1];
+    var lastThree = intPart.length > 3 ? intPart.slice(-3) : intPart;
+    var rest = intPart.length > 3 ? intPart.slice(0, -3) : "";
+    var formattedRest = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",");
+    var result = (rest ? formattedRest + "," : "") + lastThree;
+    return (neg ? "-" : "") + "₹" + result + (dec ? "." + dec : "");
+  }
+
+  function monthKey(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  }
+  function monthLabelFor(key) {
+    var parts = key.split("-");
+    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+    return d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  }
+  function addMonths(key, delta) {
+    var parts = key.split("-");
+    var y = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10) - 1 + delta;
+    var d = new Date(y, m, 1);
+    return monthKey(d);
+  }
+
+  function makeIncomePouch() {
+    return { id: INCOME_POUCH_ID, name: "Income", budget: 0, spent: 0, color: PALETTE_INCOME_BLUE, isInvestment: false, isIncome: true };
+  }
+
+  function defaultMonthData(templateCategories) {
+    var source = templateCategories || STARTER_CATEGORIES;
+    var priorIncomePouch = source.find(function (c) { return c.isIncome; });
+    var cats = source
+      .filter(function (c) { return !c.isIncome; })
+      .map(function (c) {
+        return { id: c.id, name: c.name, budget: c.budget, spent: 0, color: c.color, isInvestment: !!c.isInvestment };
+      });
+    var incomePouch = makeIncomePouch();
+    if (priorIncomePouch) {
+      incomePouch.name = priorIncomePouch.name;
+      incomePouch.budget = priorIncomePouch.budget; // carry the target forward, spend always resets to 0
+    }
+    cats.unshift(incomePouch);
+    return {
+      categories: cats,
+      recentExpenses: []
+    };
+  }
+
+  // Migrates older saved data: pulls the legacy `income` array (if present) into
+  // the income pouch's spent total and prepends matching log entries.
+  function migrateMonthData(monthData) {
+    if (!monthData.categories) monthData.categories = [];
+    var hasIncomePouch = monthData.categories.some(function (c) { return c.id === INCOME_POUCH_ID; });
+    if (!hasIncomePouch) {
+      var incomePouch = makeIncomePouch();
+      if (Array.isArray(monthData.income)) {
+        var total = monthData.income.reduce(function (s, e) { return s + e.amount; }, 0);
+        incomePouch.spent = total;
+        incomePouch.budget = total; // sensible default target so it doesn't show as "over" immediately
+        if (!monthData.recentExpenses) monthData.recentExpenses = [];
+        var migratedEntries = monthData.income.map(function (inc) {
+          return { id: inc.id || uid(), catId: INCOME_POUCH_ID, catName: "Income", amount: inc.amount, note: inc.note || "", color: PALETTE_INCOME_BLUE };
+        });
+        monthData.recentExpenses = migratedEntries.concat(monthData.recentExpenses);
+      }
+      monthData.categories.unshift(incomePouch);
+    }
+    delete monthData.income;
+    if (!monthData.recentExpenses) monthData.recentExpenses = [];
+    return monthData;
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) { return null; }
+  }
+
+  var saved = loadState();
+  var nowKey = monthKey(new Date());
+
+  var state = saved && saved.months ? saved : {
+    months: (function () {
+      var obj = {};
+      obj[nowKey] = defaultMonthData(STARTER_CATEGORIES);
+      return obj;
+    })(),
+    currentMonth: nowKey,
+    expenseModalCatId: null
+  };
+  // migrate every stored month (handles old-format backups/localStorage)
+  Object.keys(state.months).forEach(function (k) {
+    state.months[k] = migrateMonthData(state.months[k]);
+  });
+  if (!state.currentMonth) state.currentMonth = nowKey;
+  if (!state.months[state.currentMonth]) state.months[state.currentMonth] = defaultMonthData(STARTER_CATEGORIES);
+
+  function currentData() { return state.months[state.currentMonth]; }
+
+  function ensureMonth(key) {
+    if (state.months[key]) return;
+    // carry over categories (names/budgets/colors/investment flag) from the most recent prior month, spend reset to 0
+    // (income pouch is excluded from the template and re-added fresh by defaultMonthData)
+    var keys = Object.keys(state.months).sort();
+    var priorKey = null;
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i] < key) priorKey = keys[i];
+    }
+    var template = priorKey ? state.months[priorKey].categories : STARTER_CATEGORIES;
+    state.months[key] = defaultMonthData(template);
+  }
+
+  var savedFlashTimer = null;
+  function flashSaved() {
+    var el = document.getElementById("savedFlash");
+    el.classList.add("show");
+    if (savedFlashTimer) clearTimeout(savedFlashTimer);
+    savedFlashTimer = setTimeout(function () { el.classList.remove("show"); }, 900);
+  }
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        months: state.months,
+        currentMonth: state.currentMonth
+      }));
+      flashSaved();
+    } catch (e) { /* still works in-memory this session */ }
+  }
+
+  function pouchSVG(pct, color, overBudget) {
+    var clamped = Math.min(Math.max(pct, 0), 1);
+    var fillColor = overBudget ? PALETTE_RED : color;
+    var clipId = "clip-" + color.replace("#", "") + "-" + Math.round(pct * 100) + "-" + uid();
+    var pathD = "M14 18 Q14 12 20 12 L44 12 Q50 12 50 18 L50 46 Q50 56 32 56 Q14 56 14 46 Z";
+    var fillY = 56 - 44 * clamped;
+    var fillH = 44 * clamped;
+    return (
+      '<svg viewBox="0 0 64 64" width="56" height="56" style="flex-shrink:0;">' +
+        '<defs><clipPath id="' + clipId + '"><path d="' + pathD + '" /></clipPath></defs>' +
+        '<path d="' + pathD + '" fill="#fff" stroke="#E5DDD0" stroke-width="2" />' +
+        '<rect x="14" y="' + fillY + '" width="36" height="' + fillH + '" fill="' + fillColor + '" opacity="0.85" clip-path="url(#' + clipId + ')">' +
+          '<animate attributeName="y" from="56" dur="0.5s" fill="freeze" />' +
+        '</rect>' +
+        '<path d="' + pathD + '" fill="none" stroke="#2D2A26" stroke-width="1.5" opacity="0.15" />' +
+        '<rect x="22" y="9" width="20" height="5" rx="2.5" fill="#E5DDD0" stroke="#2D2A26" stroke-opacity="0.15" stroke-width="1" />' +
+      '</svg>'
+    );
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
+  function pickOne(arr, seed) {
+    // deterministic-ish pick so the message doesn't flicker on every render,
+    // but varies based on the numbers involved
+    var idx = Math.abs(Math.round(seed)) % arr.length;
+    return arr[idx];
+  }
+
+  var ICONS = {
+    good: '<svg class="msg-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>',
+    nudge: '<svg class="msg-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>',
+    warn: '<svg class="msg-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" /><path d="M12 9v4M12 17h.01" /></svg>',
+    neutral: '<svg class="msg-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>'
+  };
+
+  function analystMessage(tone, html) {
+    return '<div class="analyst-msg tone-' + tone + '">' + ICONS[tone] + '<span>' + html + '</span></div>';
+  }
+
+  function generateAnalystMessages(data, totalIncome, totalSpent, totalInvested, spendCats, investCats, remaining) {
+    var msgs = [];
+
+    if (totalIncome === 0) {
+      msgs.push(analystMessage("neutral", "I can't tell you much without knowing what came in this month. Log some income and I'll start paying attention."));
+      return msgs;
+    }
+
+    // --- Per-pouch checks (spending pouches only) ---
+    var overPouches = [];
+    var nearLimitPouches = [];
+    spendCats.forEach(function (c) {
+      if (c.budget <= 0) return;
+      var pct = c.spent / c.budget;
+      if (pct > 1) overPouches.push(c);
+      else if (pct >= 0.8) nearLimitPouches.push(c);
+    });
+
+    if (overPouches.length === 1) {
+      var c = overPouches[0];
+      var over = c.spent - c.budget;
+      var lines = [
+        "<b>" + escapeHtml(c.name) + "</b> has burst its banks — " + formatINR(over) + " over budget. The pouch is not, in fact, stretchy.",
+        "<b>" + escapeHtml(c.name) + "</b> is " + formatINR(over) + " over its limit. I'm not mad, just disappointed. Mostly mad.",
+        "<b>" + escapeHtml(c.name) + "</b> blew past its budget by " + formatINR(over) + ". Worth a look before it becomes a habit."
+      ];
+      msgs.push(analystMessage("warn", pickOne(lines, c.spent)));
+    } else if (overPouches.length > 1) {
+      var names = overPouches.map(function (c) { return escapeHtml(c.name); }).join(", ");
+      msgs.push(analystMessage("warn", "<b>" + overPouches.length + " pouches</b> (" + names + ") are over budget this month. Might be time for a sit-down with your spending."));
+    }
+
+    if (nearLimitPouches.length > 0 && overPouches.length === 0) {
+      var nc = nearLimitPouches[0];
+      var pctLeft = Math.round((1 - nc.spent / nc.budget) * 100);
+      var lines2 = [
+        "<b>" + escapeHtml(nc.name) + "</b> is at " + (100 - pctLeft) + "% of budget. Only " + pctLeft + "% of breathing room left.",
+        "Heads up — <b>" + escapeHtml(nc.name) + "</b> is creeping close to its limit. " + formatINR(nc.budget - nc.spent) + " left in the tank."
+      ];
+      msgs.push(analystMessage("nudge", pickOne(lines2, nc.spent)));
+    }
+
+    // --- Spending + investing together exceeding income (the money isn't there) ---
+    var isOverdrawn = remaining < 0;
+    if (isOverdrawn) {
+      var overBy = Math.abs(remaining);
+      var lines0 = [
+        "Spending and investing together come to " + formatINR(overBy) + " more than you earned this month. That gap has to come from somewhere — savings, credit, or a borrowed pouch.",
+        "You're " + formatINR(overBy) + " in the red this month once spending and investing are both counted. Worth pulling back on one of them.",
+        "The numbers don't add up — you're " + formatINR(overBy) + " over what came in. No garden grows on money it doesn't have."
+      ];
+      msgs.push(analystMessage("warn", pickOne(lines0, overBy)));
+    }
+
+    // --- Total spend vs income ---
+    var spendPct = totalSpent / totalIncome;
+    if (spendPct >= 0.9) {
+      msgs.push(analystMessage("warn", "You've spent <b>" + Math.round(spendPct * 100) + "%</b> of everything you earned this month. The garden is thirsty and so is your wallet."));
+    } else if (spendPct >= 0.7) {
+      msgs.push(analystMessage("nudge", "Spending sits at <b>" + Math.round(spendPct * 100) + "%</b> of income. Not alarming, but worth keeping an eye on for the rest of the month."));
+    }
+
+    // --- Investment checks ---
+    var hasInvestPouch = investCats.length > 0;
+    var investPct = totalInvested / totalIncome;
+
+    if (!hasInvestPouch) {
+      var lines3 = [
+        "No investment pouch yet. Future-you is currently filing a complaint.",
+        "I don't see any investing happening. Even a small pouch counts — your money likes a job to do.",
+        "Zero pouches marked as investments. Growing a garden takes more than just not spending — try planting something."
+      ];
+      msgs.push(analystMessage("warn", pickOne(lines3, totalIncome)));
+    } else if (isOverdrawn) {
+      // skip the investing-rate commentary entirely — celebrating a % that isn't backed by real money is misleading
+    } else if (investPct < 0.1) {
+      msgs.push(analystMessage("nudge", "You're investing <b>" + Math.round(investPct * 100) + "%</b> of income. A common rule of thumb is 15-20% — worth nudging this up when you can."));
+    } else if (investPct < 0.2) {
+      msgs.push(analystMessage("nudge", "Investing sits at <b>" + Math.round(investPct * 100) + "%</b> of income — decent, but there's room to grow it further."));
+    } else {
+      var lines4 = [
+        "Investing <b>" + Math.round(investPct * 100) + "%</b> of income — that's a properly tended garden. Well done.",
+        "<b>" + Math.round(investPct * 100) + "%</b> invested this month. Future-you sends their regards.",
+        "Solid investing rate at <b>" + Math.round(investPct * 100) + "%</b>. Keep this up and the garden basically tends itself."
+      ];
+      msgs.push(analystMessage("good", pickOne(lines4, totalInvested)));
+    }
+
+    // --- Overall positive reinforcement if nothing alarming ---
+    if (!isOverdrawn && overPouches.length === 0 && spendPct < 0.7 && hasInvestPouch && investPct >= 0.1) {
+      var lines5 = [
+        "Spending's in check, investing's on track. This is what a well-tended month looks like.",
+        "Nothing to flag here — budgets holding, investments growing. Onwards.",
+        "A genuinely calm month, financially speaking. Enjoy it."
+      ];
+      msgs.push(analystMessage("good", pickOne(lines5, totalSpent + totalInvested)));
+    }
+
+    if (msgs.length === 0) {
+      msgs.push(analystMessage("neutral", "Nothing notable yet this month — keep logging and I'll keep watching."));
+    }
+
+    return msgs;
+  }
+
+  function render() {
+    var data = currentData();
+    document.getElementById("monthLabel").textContent = monthLabelFor(state.currentMonth);
+
+    var incomePouch = data.categories.find(function (c) { return c.id === INCOME_POUCH_ID; }) || makeIncomePouch();
+    var totalIncome = incomePouch.spent;
+    var spendCats = data.categories.filter(function (c) { return !c.isInvestment && !c.isIncome; });
+    var investCats = data.categories.filter(function (c) { return c.isInvestment; });
+    var totalSpent = spendCats.reduce(function (s, c) { return s + c.spent; }, 0);
+    var totalInvested = investCats.reduce(function (s, c) { return s + c.spent; }, 0);
+    var remaining = totalIncome - totalSpent - totalInvested;
+
+    document.getElementById("statEarned").textContent = formatINR(totalIncome);
+    document.getElementById("statSpent").textContent = formatINR(totalSpent);
+    document.getElementById("statInvested").textContent = formatINR(totalInvested);
+    var remEl = document.getElementById("statRemaining");
+    remEl.textContent = formatINR(remaining);
+    remEl.style.color = remaining < 0 ? PALETTE_RED : "var(--ink)";
+
+    var headline;
+    if (totalIncome === 0) {
+      headline = "Log your income for " + monthLabelFor(state.currentMonth) + " to see the full picture.";
+    } else {
+      var spentPct = Math.round((totalSpent / totalIncome) * 100);
+      var investPct = Math.round((totalInvested / totalIncome) * 100);
+      headline = "Of <b>" + formatINR(totalIncome) + "</b> earned, you spent <b>" + formatINR(totalSpent) + "</b> (" + spentPct + "%) and invested <b>" + formatINR(totalInvested) + "</b> (" + investPct + "%), leaving <b>" + formatINR(remaining) + "</b>.";
+    }
+    document.getElementById("summaryHeadline").innerHTML = headline;
+
+    // flow bar
+    var flowBar = document.getElementById("flowBar");
+    var flowLegend = document.getElementById("flowLegend");
+    if (totalIncome > 0) {
+      var spentW = Math.max(0, Math.min(100, (totalSpent / totalIncome) * 100));
+      var investW = Math.max(0, Math.min(100, (totalInvested / totalIncome) * 100));
+      var leftW = Math.max(0, 100 - spentW - investW);
+      flowBar.innerHTML =
+        '<div class="flow-seg" style="width:' + spentW + '%; background:' + PALETTE_CLAY + ';"></div>' +
+        '<div class="flow-seg" style="width:' + investW + '%; background:' + PALETTE_BLUE + ';"></div>' +
+        '<div class="flow-seg" style="width:' + leftW + '%; background:' + PALETTE_SAGE + ';"></div>';
+      flowLegend.innerHTML =
+        '<span><span class="flow-dot" style="background:' + PALETTE_CLAY + ';"></span>Spent</span>' +
+        '<span><span class="flow-dot" style="background:' + PALETTE_BLUE + ';"></span>Invested</span>' +
+        '<span><span class="flow-dot" style="background:' + PALETTE_SAGE + ';"></span>Left over</span>';
+    } else {
+      flowBar.innerHTML = "";
+      flowLegend.innerHTML = "";
+    }
+
+    // behavior analyst
+    var analystMsgs = generateAnalystMessages(data, totalIncome, totalSpent, totalInvested, spendCats, investCats, remaining);
+    document.getElementById("analystBody").innerHTML = analystMsgs.join("");
+    var hasWarn = analystMsgs.some(function (m) { return m.indexOf("tone-warn") !== -1; });
+    var hasNudge = analystMsgs.some(function (m) { return m.indexOf("tone-nudge") !== -1; });
+    var hasGood = analystMsgs.some(function (m) { return m.indexOf("tone-good") !== -1; });
+    var emoji = "🌱";
+    if (hasWarn) emoji = "🥀";
+    else if (hasNudge) emoji = "🌤️";
+    else if (hasGood) emoji = "🌷";
+    document.getElementById("analystEmoji").textContent = emoji;
+
+    // category pouches (income pouch renders first, with special styling/behavior)
+    var gridWrap = document.getElementById("catGridWrap");
+    if (data.categories.length === 0) {
+      gridWrap.innerHTML = '<div class="empty-state">No pouches yet. Tap "New pouch" to add your first one — name it, set a budget, and start tracking.</div>';
+    } else {
+      var html = '<div class="cat-grid">';
+      data.categories.forEach(function (c) {
+        if (c.isIncome) {
+          var hasTarget = c.budget > 0;
+          var ipct = hasTarget ? c.spent / c.budget : (c.spent > 0 ? 1 : 0);
+          var surplus = hasTarget && c.spent > c.budget;
+          var amountsLine;
+          if (!hasTarget) {
+            amountsLine = formatINR(c.spent) + ' earned so far — no target set';
+          } else if (surplus) {
+            amountsLine = formatINR(c.spent) + ' of ' + formatINR(c.budget) + ' — ' + formatINR(c.spent - c.budget) + ' surplus 🎉';
+          } else {
+            amountsLine = formatINR(c.spent) + ' of ' + formatINR(c.budget) + ' target';
+          }
+          html += '<div class="cat-card is-income" data-id="' + c.id + '">' +
+            pouchSVG(ipct, c.color, false) +
+            '<div class="cat-info">' +
+              '<div class="cat-top">' +
+                '<div class="cat-name-wrap">' +
+                  '<span class="cat-name">' + escapeHtml(c.name) + '</span>' +
+                  '<span class="income-badge">Income</span>' +
+                '</div>' +
+                '<div class="cat-actions">' +
+                '<button class="cat-edit" data-action="edit" data-id="' + c.id + '" aria-label="Edit income target">' +
+                  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>' +
+                '</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="cat-amounts" style="color:' + (surplus ? PALETTE_INCOME_BLUE : "#6B655C") + ';">' +
+                amountsLine +
+              '</div>' +
+              '<button class="log-expense-btn log-income-btn" data-action="log" data-id="' + c.id + '">+ Log income</button>' +
+            '</div>' +
+          '</div>';
+          return;
+        }
+        var pct = c.budget > 0 ? c.spent / c.budget : 0;
+        var over = c.spent > c.budget;
+        html += '<div class="cat-card' + (c.isInvestment ? ' is-invest' : '') + '" data-id="' + c.id + '">' +
+          pouchSVG(pct, c.color, over) +
+          '<div class="cat-info">' +
+            '<div class="cat-top">' +
+              '<div class="cat-name-wrap">' +
+                '<span class="cat-name">' + escapeHtml(c.name) + '</span>' +
+                (c.isInvestment ? '<span class="invest-badge">Investment</span>' : '<span class="spend-badge">Spending</span>') +
+              '</div>' +
+              '<div class="cat-actions">' +
+              '<button class="cat-edit" data-action="edit" data-id="' + c.id + '" aria-label="Edit ' + escapeHtml(c.name) + ' pouch">' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>' +
+              '</button>' +
+              '<button class="cat-delete" data-action="delete" data-id="' + c.id + '" aria-label="Delete ' + escapeHtml(c.name) + ' pouch">' +
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>' +
+              '</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="cat-amounts" style="color:' + (over ? PALETTE_RED : "#6B655C") + ';">' +
+              formatINR(c.spent) + ' of ' + formatINR(c.budget) + (over ? ' — over budget' : '') +
+            '</div>' +
+            '<button class="log-expense-btn" data-action="log" data-id="' + c.id + '">+ Log ' + (c.isInvestment ? 'investment' : 'expense') + '</button>' +
+          '</div>' +
+        '</div>';
+      });
+      html += '</div>';
+      gridWrap.innerHTML = html;
+    }
+
+    // recent
+    var recentSection = document.getElementById("recentSection");
+    var recentList = document.getElementById("recentList");
+    if (data.recentExpenses.length > 0) {
+      recentSection.style.display = "";
+      var rhtml = "";
+      data.recentExpenses.forEach(function (e) {
+        rhtml += '<div class="recent-item">' +
+          '<span class="dot" style="background:' + e.color + ';"></span>' +
+          '<span style="font-weight:700;">' + escapeHtml(e.catName) + '</span>' +
+          (e.note ? '<span class="recent-note">· ' + escapeHtml(e.note) + '</span>' : '') +
+          '<span class="recent-amount">' + formatINR(e.amount) + '</span>' +
+          '<button class="recent-delete" data-action="delete-entry" data-id="' + e.id + '" aria-label="Delete this entry">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>' +
+          '</button>' +
+        '</div>';
+      });
+      recentList.innerHTML = rhtml;
+    } else {
+      recentSection.style.display = "none";
+    }
+  }
+
+  // --- Month navigation ---
+  document.getElementById("prevMonth").addEventListener("click", function () {
+    var key = addMonths(state.currentMonth, -1);
+    ensureMonth(key);
+    state.currentMonth = key;
+    saveState();
+    render();
+  });
+  document.getElementById("nextMonth").addEventListener("click", function () {
+    var key = addMonths(state.currentMonth, 1);
+    ensureMonth(key);
+    state.currentMonth = key;
+    saveState();
+    render();
+  });
+
+  // --- Add category ---
+  document.getElementById("toggleAddCat").addEventListener("click", function () {
+    document.getElementById("addCatForm").classList.toggle("show");
+  });
+  document.getElementById("addCatBtn").addEventListener("click", function () {
+    var nameInput = document.getElementById("newCatName");
+    var budgetInput = document.getElementById("newCatBudget");
+    var investInput = document.getElementById("newCatInvest");
+    var name = nameInput.value.trim();
+    var budget = parseFloat(budgetInput.value);
+    if (!name || isNaN(budget) || budget <= 0) return;
+    var data = currentData();
+    var color = investInput.checked ? PALETTE_BLUE : CATEGORY_COLORS[data.categories.length % CATEGORY_COLORS.length];
+    data.categories.push({ id: uid(), name: name, budget: budget, spent: 0, color: color, isInvestment: investInput.checked });
+    nameInput.value = "";
+    budgetInput.value = "";
+    investInput.checked = false;
+    document.getElementById("addCatForm").classList.remove("show");
+    saveState();
+    render();
+  });
+
+  // --- Category card actions ---
+  document.getElementById("catGridWrap").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    var id = btn.getAttribute("data-id");
+    var action = btn.getAttribute("data-action");
+    var data = currentData();
+    if (action === "delete") {
+      var catToDelete = data.categories.find(function (c) { return c.id === id; });
+      if (catToDelete && catToDelete.isIncome) return; // income pouch can't be deleted
+      if (catToDelete && catToDelete.spent > 0) {
+        var verb = catToDelete.isInvestment ? "invested" : "spent";
+        var confirmMsg = "\"" + catToDelete.name + "\" has " + formatINR(catToDelete.spent) + " " + verb + " logged this month. Deleting it removes that amount from this month's totals for good — it won't show up anywhere else. Delete anyway?";
+        if (!window.confirm(confirmMsg)) return;
+      }
+      data.categories = data.categories.filter(function (c) { return c.id !== id; });
+      saveState();
+      render();
+    } else if (action === "log") {
+      openExpenseModal(id);
+    } else if (action === "edit") {
+      openEditCatModal(id);
+    }
+  });
+
+  document.getElementById("recentList").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-action='delete-entry']");
+    if (!btn) return;
+    var entryId = btn.getAttribute("data-id");
+    var data = currentData();
+    var entry = data.recentExpenses.find(function (en) { return en.id === entryId; });
+    if (!entry) return;
+
+    var verb = "removes it from";
+    if (entry.catId) {
+      var cat = data.categories.find(function (c) { return c.id === entry.catId; });
+      if (cat) {
+        if (cat.isIncome) verb = "removes it from your earned total in";
+        else if (cat.isInvestment) verb = "removes it from your invested total in";
+        else verb = "removes it from your spent total in";
+      }
+    }
+    if (!window.confirm("Remove this " + formatINR(entry.amount) + " entry (" + entry.catName + (entry.note ? " · " + entry.note : "") + ")? This " + verb + " this month.")) return;
+
+    if (entry.catId) {
+      var targetCat = data.categories.find(function (c) { return c.id === entry.catId; });
+      if (targetCat) targetCat.spent = Math.max(0, targetCat.spent - entry.amount);
+    }
+    data.recentExpenses = data.recentExpenses.filter(function (en) { return en.id !== entryId; });
+    saveState();
+    render();
+  });
+
+  var editingCatId = null;
+  function openEditCatModal(catId) {
+    var data = currentData();
+    var cat = data.categories.find(function (c) { return c.id === catId; });
+    if (!cat) return;
+    editingCatId = catId;
+    document.getElementById("editCatName").value = cat.name;
+    document.getElementById("editCatBudget").value = cat.budget;
+    var investRow = document.getElementById("editCatInvestRow");
+    if (cat.isIncome) {
+      investRow.style.display = "none";
+      document.getElementById("editCatBudget").placeholder = "Target income ₹ (optional)";
+      document.getElementById("editCatModalTitle").textContent = "Edit income pouch";
+    } else {
+      investRow.style.display = "";
+      document.getElementById("editCatInvest").checked = !!cat.isInvestment;
+      document.getElementById("editCatBudget").placeholder = "Budget ₹";
+      document.getElementById("editCatModalTitle").textContent = "Edit pouch";
+    }
+    document.getElementById("editCatModalOverlay").classList.add("show");
+    document.getElementById("editCatName").focus();
+  }
+  function closeEditCatModal() {
+    editingCatId = null;
+    document.getElementById("editCatModalOverlay").classList.remove("show");
+  }
+  document.getElementById("editCatModalOverlay").addEventListener("click", closeEditCatModal);
+  document.getElementById("editCatCancel").addEventListener("click", closeEditCatModal);
+  document.getElementById("editCatConfirm").addEventListener("click", function () {
+    if (!editingCatId) return;
+    var name = document.getElementById("editCatName").value.trim();
+    var budgetRaw = document.getElementById("editCatBudget").value;
+    var data = currentData();
+    var cat = data.categories.find(function (c) { return c.id === editingCatId; });
+    if (!cat) { closeEditCatModal(); return; }
+    if (cat.isIncome) {
+      // income target is optional (0 = no target set)
+      var targetBudget = parseFloat(budgetRaw);
+      if (!name) return;
+      cat.name = name;
+      cat.budget = isNaN(targetBudget) || targetBudget < 0 ? 0 : targetBudget;
+    } else {
+      var budget = parseFloat(budgetRaw);
+      if (!name || isNaN(budget) || budget <= 0) return;
+      var isInvestment = document.getElementById("editCatInvest").checked;
+      cat.name = name;
+      cat.budget = budget;
+      var wasInvestment = cat.isInvestment;
+      cat.isInvestment = isInvestment;
+      // swap color sensibly if investment status changed
+      if (isInvestment && !wasInvestment) cat.color = PALETTE_BLUE;
+      if (!isInvestment && wasInvestment) cat.color = CATEGORY_COLORS[0];
+    }
+    closeEditCatModal();
+    saveState();
+    render();
+  });
+
+  function openExpenseModal(catId) {
+    state.expenseModalCatId = catId;
+    var data = currentData();
+    var cat = data.categories.find(function (c) { return c.id === catId; });
+    var title = "Log an expense";
+    if (cat && cat.isIncome) title = "Log income";
+    else if (cat && cat.isInvestment) title = "Log an investment";
+    document.getElementById("modalTitle").textContent = title;
+    document.getElementById("modalCatName").textContent = cat ? cat.name : "";
+    document.getElementById("expenseNote").placeholder = (cat && cat.isIncome) ? "Source (e.g. Salary, Freelance)" : "What was it for? (optional)";
+    document.getElementById("expenseAmount").value = "";
+    document.getElementById("expenseNote").value = "";
+    document.getElementById("modalOverlay").classList.add("show");
+    document.getElementById("expenseAmount").focus();
+  }
+  function closeExpenseModal() {
+    state.expenseModalCatId = null;
+    document.getElementById("modalOverlay").classList.remove("show");
+  }
+  document.getElementById("modalOverlay").addEventListener("click", closeExpenseModal);
+  document.getElementById("modalCancel").addEventListener("click", closeExpenseModal);
+  document.getElementById("modalConfirm").addEventListener("click", function () {
+    var amt = parseFloat(document.getElementById("expenseAmount").value);
+    if (isNaN(amt) || amt <= 0) return;
+    var note = document.getElementById("expenseNote").value.trim();
+    var data = currentData();
+    var cat = data.categories.find(function (c) { return c.id === state.expenseModalCatId; });
+    if (cat) cat.spent += amt;
+    data.recentExpenses.unshift({
+      id: uid(),
+      catId: cat ? cat.id : null,
+      catName: cat ? cat.name : "—",
+      amount: amt,
+      note: note,
+      color: cat ? cat.color : "#999"
+    });
+    data.recentExpenses = data.recentExpenses.slice(0, 10);
+    closeExpenseModal();
+    saveState();
+    render();
+  });
+
+  // --- Export / Import ---
+  document.getElementById("exportBtn").addEventListener("click", function () {
+    var payload = { months: state.months, currentMonth: state.currentMonth, exportedAt: new Date().toISOString() };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    var dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = "little-garden-backup-" + dateStr + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  });
+
+  document.getElementById("importBtn").addEventListener("click", function () {
+    document.getElementById("importText").value = "";
+    document.getElementById("importModalOverlay").classList.add("show");
+  });
+  function closeImportModal() { document.getElementById("importModalOverlay").classList.remove("show"); }
+  document.getElementById("importCancel").addEventListener("click", closeImportModal);
+  document.getElementById("importModalOverlay").addEventListener("click", closeImportModal);
+  document.getElementById("importConfirm").addEventListener("click", function () {
+    var raw = document.getElementById("importText").value.trim();
+    if (!raw) return;
+    try {
+      var parsed = JSON.parse(raw);
+      if (!parsed.months || typeof parsed.months !== "object") throw new Error("Missing months data");
+      Object.keys(parsed.months).forEach(function (k) {
+        parsed.months[k] = migrateMonthData(parsed.months[k]);
+      });
+      state.months = parsed.months;
+      state.currentMonth = parsed.currentMonth && parsed.months[parsed.currentMonth] ? parsed.currentMonth : Object.keys(parsed.months).sort().slice(-1)[0];
+      saveState();
+      closeImportModal();
+      render();
+    } catch (err) {
+      window.alert("That doesn't look like a valid backup file. Please paste the full contents of a Little Garden backup .json file.");
+    }
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    if (!window.confirm("Reset " + monthLabelFor(state.currentMonth) + " — clear income, spending, and history for this month only? Other months are unaffected.")) return;
+    state.months[state.currentMonth] = defaultMonthData(STARTER_CATEGORIES);
+    saveState();
+    render();
+  });
+
+  // Initial paint
+  render();
+})();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("service-worker.js").catch(function () {
+      // offline install support just won't be available; app still works normally
+    });
+  });
+}
+</script>
+</body>
+</html>
